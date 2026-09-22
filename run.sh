@@ -14,4 +14,5 @@ else
   exit 1
 fi
 
+export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 exec "${VENV_PYTHON}" -m math_trainer.main
