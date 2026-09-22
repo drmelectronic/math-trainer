@@ -129,6 +129,30 @@ class Button(UIElement):
         )
 
 
+_DIGIT_KEYS: dict[int, str] = {
+    pygame.K_0: "0",
+    pygame.K_1: "1",
+    pygame.K_2: "2",
+    pygame.K_3: "3",
+    pygame.K_4: "4",
+    pygame.K_5: "5",
+    pygame.K_6: "6",
+    pygame.K_7: "7",
+    pygame.K_8: "8",
+    pygame.K_9: "9",
+    pygame.K_KP0: "0",
+    pygame.K_KP1: "1",
+    pygame.K_KP2: "2",
+    pygame.K_KP3: "3",
+    pygame.K_KP4: "4",
+    pygame.K_KP5: "5",
+    pygame.K_KP6: "6",
+    pygame.K_KP7: "7",
+    pygame.K_KP8: "8",
+    pygame.K_KP9: "9",
+}
+
+
 class NumericInputBox(UIElement):
     def __init__(self, rect: pygame.Rect, max_digits: int = 4) -> None:
         super().__init__(rect)
@@ -150,13 +174,21 @@ class NumericInputBox(UIElement):
     def set_active(self, active: bool) -> None:
         self.active = active
 
+    def _append_digit(self, digit: str) -> None:
+        if len(self.text) >= self.max_digits:
+            return
+        if self.text == "0":
+            self.text = digit
+        else:
+            self.text += digit
+
     def handle_event(self, event: pygame.event.Event) -> bool:
         if not self.visible:
             return False
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             was_active = self.active
-            self.active = self.rect.collidepoint(event.pos)
+            self.set_active(self.rect.collidepoint(event.pos))
             return self.active or was_active
 
         if not self.active:
@@ -176,11 +208,13 @@ class NumericInputBox(UIElement):
                 self.clear()
                 return True
 
-            if event.unicode.isdigit() and len(self.text) < self.max_digits:
-                if self.text == "0":
-                    self.text = event.unicode
-                else:
-                    self.text += event.unicode
+            digit = _DIGIT_KEYS.get(event.key)
+            if digit is not None:
+                self._append_digit(digit)
+                return True
+
+            if event.unicode.isdigit():
+                self._append_digit(event.unicode)
                 return True
 
         return False

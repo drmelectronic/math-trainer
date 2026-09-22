@@ -99,6 +99,9 @@ class PlayState(GameState):
         self._update_hud()
         self._next_question()
 
+    def exit(self) -> None:
+        self.input_box.set_active(False)
+
     def _next_question(self) -> None:
         if self.answered >= SESSION_LENGTH:
             stats = SessionStats.from_attempts(
@@ -185,6 +188,10 @@ class PlayState(GameState):
     def handle_event(self, event: pygame.event.Event) -> None:
         if not self.input_enabled:
             return
+
+        if event.type == pygame.KEYDOWN:
+            if self.input_box.handle_event(event):
+                return
 
         for element in self.ui_elements:
             if element.handle_event(event):

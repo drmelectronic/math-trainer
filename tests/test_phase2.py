@@ -23,6 +23,28 @@ class TestNumericInputBox(unittest.TestCase):
     def _key(self, key: int, unicode: str = "") -> pygame.event.Event:
         return pygame.event.Event(pygame.KEYDOWN, key=key, unicode=unicode)
 
+    def test_accepts_key_codes_without_unicode(self) -> None:
+        self.input_box.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_7, unicode="")
+        )
+        self.input_box.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_8, unicode="")
+        )
+        self.assertEqual(self.input_box.text, "78")
+
+    def test_ignores_textinput_to_avoid_duplicates(self) -> None:
+        self.input_box.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_1, unicode="")
+        )
+        self.input_box.handle_event(pygame.event.Event(pygame.TEXTINPUT, text="1"))
+        self.assertEqual(self.input_box.text, "1")
+
+    def test_key_code_and_unicode_on_same_event_count_once(self) -> None:
+        self.input_box.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_5, unicode="5")
+        )
+        self.assertEqual(self.input_box.text, "5")
+
     def test_accepts_digits_up_to_max(self) -> None:
         for digit in "1234":
             self.input_box.handle_event(self._key(ord(digit), digit))
