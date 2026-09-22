@@ -9,7 +9,7 @@ from math_trainer.game.constants import (
     SCREEN_WIDTH,
 )
 from math_trainer.game.states.base import GameState
-from math_trainer.game.ui.elements import Button, TextLabel
+from math_trainer.game.ui.elements import LevelButton, TextLabel
 
 
 class MenuState(GameState):
@@ -28,25 +28,25 @@ class MenuState(GameState):
             color=COLOR_TEXT,
         )
         button_width = 180
-        button_height = 56
+        button_height = 76
         gap = 24
         start_x = (SCREEN_WIDTH - (button_width * 3 + gap * 2)) // 2
         y = 300
 
         self.level_buttons = [
-            Button(
+            LevelButton(
                 pygame.Rect(start_x, y, button_width, button_height),
-                "Nivel 1",
+                1,
                 lambda level=1: self._start_game(level),
             ),
-            Button(
+            LevelButton(
                 pygame.Rect(start_x + button_width + gap, y, button_width, button_height),
-                "Nivel 2",
+                2,
                 lambda level=2: self._start_game(level),
             ),
-            Button(
+            LevelButton(
                 pygame.Rect(start_x + (button_width + gap) * 2, y, button_width, button_height),
-                "Nivel 3",
+                3,
                 lambda level=3: self._start_game(level),
             ),
         ]
@@ -55,7 +55,7 @@ class MenuState(GameState):
     def enter(self, **kwargs) -> None:
         for level, button in zip((1, 2, 3), self.level_buttons, strict=True):
             record = self.manager.db.get_max_streak(level)
-            button.text = f"Nivel {level} (récord: {record})"
+            button.set_record(record)
 
     def _start_game(self, level: int) -> None:
         self.manager.change_state("play", level=level)

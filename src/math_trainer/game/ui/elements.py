@@ -12,6 +12,7 @@ from math_trainer.game.constants import (
     COLOR_INPUT_BORDER,
     COLOR_PROGRESS_BG,
     COLOR_PROGRESS_FILL,
+    COLOR_RECORD,
     COLOR_TEXT,
     COLOR_TEXT_LIGHT,
     FONT_LARGE,
@@ -125,6 +126,71 @@ class Button(UIElement):
             (
                 self.rect.centerx - rendered.get_width() // 2,
                 self.rect.centery - rendered.get_height() // 2,
+            ),
+        )
+
+
+class LevelButton(UIElement):
+    def __init__(
+        self,
+        rect: pygame.Rect,
+        level: int,
+        on_click: callable,
+        title_font_size: int = 24,
+        record_font_size: int = 20,
+    ) -> None:
+        super().__init__(rect)
+        self.level = level
+        self.title = f"Nivel {level}"
+        self.record_text = "Récord: 0"
+        self.on_click = on_click
+        self.hovered = False
+        self._title_font = pygame.font.SysFont("dejavusans", title_font_size, bold=True)
+        self._record_font = pygame.font.SysFont("dejavusans", record_font_size, bold=True)
+
+    def set_record(self, record: int) -> None:
+        self.record_text = f"Récord: {record}"
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        if not self.visible:
+            return False
+
+        if event.type == pygame.MOUSEMOTION:
+            self.hovered = self.rect.collidepoint(event.pos)
+            return False
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self.on_click()
+                return True
+
+        return False
+
+    def update(self, dt: float) -> None:
+        return
+
+    def draw(self, surface: pygame.Surface) -> None:
+        if not self.visible:
+            return
+
+        color = COLOR_ACCENT_HOVER if self.hovered else COLOR_ACCENT
+        pygame.draw.rect(surface, color, self.rect, border_radius=8)
+
+        title_surface = self._title_font.render(self.title, True, COLOR_TEXT_LIGHT)
+        record_surface = self._record_font.render(self.record_text, True, COLOR_RECORD)
+        line_gap = 4
+        total_height = title_surface.get_height() + line_gap + record_surface.get_height()
+        start_y = self.rect.centery - total_height // 2
+
+        surface.blit(
+            title_surface,
+            (self.rect.centerx - title_surface.get_width() // 2, start_y),
+        )
+        surface.blit(
+            record_surface,
+            (
+                self.rect.centerx - record_surface.get_width() // 2,
+                start_y + title_surface.get_height() + line_gap,
             ),
         )
 
