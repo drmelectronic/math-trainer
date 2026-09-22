@@ -94,9 +94,8 @@ class PlayState(GameState):
 
     def enter(self, **kwargs) -> None:
         self.level = kwargs.get("level", 1)
-        self.current_streak = 0
         self.session_best_streak = 0
-        self.level_max_streak = self.manager.db.get_max_streak(self.level)
+        self.current_streak, self.level_max_streak = self.manager.db.get_level_streaks(self.level)
         self.answered = 0
         self.session_attempts = []
         self.input_enabled = True
@@ -149,7 +148,7 @@ class PlayState(GameState):
             previous_record = self.level_max_streak
             self.current_streak += 1
             self.session_best_streak = max(self.session_best_streak, self.current_streak)
-            self.level_max_streak = self.manager.db.update_max_streak(
+            self.current_streak, self.level_max_streak = self.manager.db.save_level_streaks(
                 self.level,
                 self.current_streak,
             )
@@ -161,7 +160,10 @@ class PlayState(GameState):
             self.manager.sounds.play_success()
             self.feedback.start_success()
         else:
-            self.current_streak = 0
+            self.current_streak, self.level_max_streak = self.manager.db.save_level_streaks(
+                self.level,
+                0,
+            )
             answer_text = self.current_question.question_text.replace(
                 "?",
                 str(self.current_question.correct_answer),

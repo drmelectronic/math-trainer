@@ -181,16 +181,30 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(self.db.get_error_rate(question_text), 0.5)
 
     def test_max_streak_per_level(self) -> None:
-        self.assertEqual(self.db.get_max_streak(1), 0)
-        self.db.update_max_streak(1, 5)
+        self.assertEqual(self.db.get_level_streaks(1), (0, 0))
+        self.db.save_level_streaks(1, 5)
+        self.assertEqual(self.db.get_level_streaks(1), (5, 5))
         self.assertEqual(self.db.get_max_streak(1), 5)
-        self.db.update_max_streak(1, 3)
-        self.assertEqual(self.db.get_max_streak(1), 5)
-        self.db.update_max_streak(1, 8)
-        self.assertEqual(self.db.get_max_streak(1), 8)
-        self.db.update_max_streak(2, 4)
-        self.assertEqual(self.db.get_max_streak(2), 4)
-        self.assertEqual(self.db.get_max_streak(1), 8)
+        self.db.save_level_streaks(1, 3)
+        self.assertEqual(self.db.get_level_streaks(1), (3, 5))
+        self.db.save_level_streaks(1, 8)
+        self.assertEqual(self.db.get_level_streaks(1), (8, 8))
+        self.db.save_level_streaks(2, 4)
+        self.assertEqual(self.db.get_level_streaks(2), (4, 4))
+        self.assertEqual(self.db.get_level_streaks(1), (8, 8))
+
+    def test_current_streak_survives_reset_without_losing_record(self) -> None:
+        self.db.save_level_streaks(1, 6)
+        self.db.save_level_streaks(1, 0)
+        self.assertEqual(self.db.get_level_streaks(1), (0, 6))
+
+        reopen_path = Path(self.temp_dir.name) / "reopen.db"
+        new_db = DatabaseManager(reopen_path)
+        new_db.save_level_streaks(1, 4)
+        new_db.close()
+        reopened = DatabaseManager(reopen_path)
+        self.assertEqual(reopened.get_level_streaks(1), (4, 4))
+        reopened.close()
 
 
 if __name__ == "__main__":

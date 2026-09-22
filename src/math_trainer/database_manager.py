@@ -34,33 +34,58 @@ class DatabaseManager:
             """
             CREATE TABLE IF NOT EXISTS level_records (
                 level INTEGER PRIMARY KEY,
+                current_streak INTEGER NOT NULL DEFAULT 0,
                 max_streak INTEGER NOT NULL DEFAULT 0
             )
             """
         )
+        self._migrate_level_records()
         self._connection.commit()
 
-    def get_max_streak(self, level: int) -> int:
+    def _migrate_level_records(self) -> None:
+        columns = {
+            row[1]
+            for row in self._connection.execute("PRAGMA table_info(level_records)")
+        }
+        if "current_streak" not in columns:
+            self._connection.execute(
+                """
+                ALTER TABLE level_records
+                ADD COLUMN current_streak INTEGER NOT NULL DEFAULT 0
+                """
+            )
+
+    def get_level_streaks(self, level: int) -> tuple[int, int]:
         cursor = self._connection.execute(
-            "SELECT max_streak FROM level_records WHERE level = ?",
+            "SELECT current_streak, max_streak FROM level_records WHERE level = ?",
             (level,),
         )
         row = cursor.fetchone()
         if row is None:
-            return 0
-        return int(row["max_streak"])
+            return (0, 0)
+        return (int(row["current_streak"]), int(row["max_streak"]))
 
-    def update_max_streak(self, level: int, streak: int) -> int:
+    def get_max_streak(self, level: int) -> int:
+        return self.get_level_streaks(level)[1]
+
+    def save_level_streaks(self, level: int, current_streak: int) -> tuple[int, int]:
+        current_streak = max(0, current_streak)
         self._connection.execute(
             """
-            INSERT INTO level_records (level, max_streak) VALUES (?, ?)
+            INSERT INTO level_records (level, current_streak, max_streak)
+            VALUES (?, ?, ?)
             ON CONFLICT(level) DO UPDATE SET
-                max_streak = MAX(level_records.max_streak, excluded.max_streak)
+                current_streak = excluded.current_streak,
+                max_streak = MAX(level_records.max_streak, excluded.current_streak)
             """,
-            (level, streak),
+            (level, current_streak, current_streak),
         )
         self._connection.commit()
-        return self.get_max_streak(level)
+        return self.get_level_streaks(level)
+
+    def update_max_streak(self, level: int, streak: int) -> int:
+        _, max_streak = self.save_level_streaks(level, streak)
+        return max_streak
 
     def record_attempt(self, attempt: QuestionAttempt) -> None:
         timestamp = attempt.timestamp or datetime.now(UTC)
