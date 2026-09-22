@@ -52,6 +52,11 @@ class MenuState(GameState):
         ]
         self.ui_elements = [self.title, self.subtitle, *self.level_buttons]
 
+    def enter(self, **kwargs) -> None:
+        for level, button in zip((1, 2, 3), self.level_buttons, strict=True):
+            record = self.manager.db.get_max_streak(level)
+            button.text = f"Nivel {level} (récord: {record})"
+
     def _start_game(self, level: int) -> None:
         self.manager.change_state("play", level=level)
 

@@ -180,6 +180,18 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(self.db.get_average_time(question_text), 3000.0)
         self.assertEqual(self.db.get_error_rate(question_text), 0.5)
 
+    def test_max_streak_per_level(self) -> None:
+        self.assertEqual(self.db.get_max_streak(1), 0)
+        self.db.update_max_streak(1, 5)
+        self.assertEqual(self.db.get_max_streak(1), 5)
+        self.db.update_max_streak(1, 3)
+        self.assertEqual(self.db.get_max_streak(1), 5)
+        self.db.update_max_streak(1, 8)
+        self.assertEqual(self.db.get_max_streak(1), 8)
+        self.db.update_max_streak(2, 4)
+        self.assertEqual(self.db.get_max_streak(2), 4)
+        self.assertEqual(self.db.get_max_streak(1), 8)
+
 
 if __name__ == "__main__":
     unittest.main()

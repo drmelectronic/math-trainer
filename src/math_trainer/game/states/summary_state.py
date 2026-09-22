@@ -19,7 +19,7 @@ class SummaryState(GameState):
         super().__init__(manager)
         self.title = TextLabel(
             pygame.Rect(0, 70, SCREEN_WIDTH, 60),
-            "Fin de la ronda",
+            "Resumen de sesión",
             font_size=FONT_TITLE,
             color=COLOR_TEXT,
         )
@@ -41,12 +41,12 @@ class SummaryState(GameState):
             self._return_to_menu,
         )
         self.ui_elements = [self.title, self.stats_label, self.weak_label, self.menu_button]
-        self.stats = SessionStats(1, 0, 0, 0, 0, 0.0, 0, None, [])
+        self.stats = SessionStats(1, 0, 0, 0, 0, 0, 0.0, 0, None, [])
 
     def enter(self, **kwargs) -> None:
         self.stats = kwargs.get(
             "stats",
-            SessionStats(1, 0, 0, 0, 0, 0.0, 0, None, []),
+            SessionStats(1, 0, 0, 0, 0, 0, 0.0, 0, None, []),
         )
 
         accuracy = (self.stats.correct / self.stats.total * 100) if self.stats.total else 0
@@ -55,8 +55,10 @@ class SummaryState(GameState):
 
         lines = [
             f"Nivel: {self.stats.level}",
-            f"Puntos: {self.stats.score}  |  Estrellas: {self.stats.stars}",
-            f"Aciertos: {self.stats.correct}/{self.stats.total} ({accuracy:.0f}%)",
+            f"Racha actual: {self.stats.current_streak}",
+            f"Mejor racha de la sesión: {self.stats.session_best_streak}",
+            f"Récord del nivel: {self.stats.level_max_streak}",
+            f"Preguntas: {self.stats.total}  |  Aciertos: {self.stats.correct} ({accuracy:.0f}%)",
             f"Tiempo promedio: {avg_seconds:.1f}s",
             f"Respuesta más lenta: {slowest_seconds:.1f}s",
         ]
@@ -69,7 +71,7 @@ class SummaryState(GameState):
             extra = "" if len(self.stats.weak_questions) <= 3 else "..."
             self.weak_label.set_text(f"Para reforzar: {preview}{extra}")
         else:
-            self.weak_label.set_text("¡Excelente! Sin errores en esta ronda.")
+            self.weak_label.set_text("¡Excelente! Sin errores en esta sesión.")
 
     def _return_to_menu(self) -> None:
         self.manager.change_state("menu")

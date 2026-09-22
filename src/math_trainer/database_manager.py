@@ -30,7 +30,37 @@ class DatabaseManager:
             )
             """
         )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS level_records (
+                level INTEGER PRIMARY KEY,
+                max_streak INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
         self._connection.commit()
+
+    def get_max_streak(self, level: int) -> int:
+        cursor = self._connection.execute(
+            "SELECT max_streak FROM level_records WHERE level = ?",
+            (level,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return 0
+        return int(row["max_streak"])
+
+    def update_max_streak(self, level: int, streak: int) -> int:
+        self._connection.execute(
+            """
+            INSERT INTO level_records (level, max_streak) VALUES (?, ?)
+            ON CONFLICT(level) DO UPDATE SET
+                max_streak = MAX(level_records.max_streak, excluded.max_streak)
+            """,
+            (level, streak),
+        )
+        self._connection.commit()
+        return self.get_max_streak(level)
 
     def record_attempt(self, attempt: QuestionAttempt) -> None:
         timestamp = attempt.timestamp or datetime.now(UTC)

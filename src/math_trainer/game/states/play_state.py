@@ -16,11 +16,10 @@ from math_trainer.game.constants import (
     INPUT_HEIGHT,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
-    SESSION_LENGTH,
 )
 from math_trainer.game.feedback import FeedbackAnimator
 from math_trainer.game.states.base import GameState
-from math_trainer.game.ui.elements import NumericInputBox, ProgressBar, TextLabel
+from math_trainer.game.ui.elements import Button, NumericInputBox, ProgressBar, TextLabel
 from math_trainer.models import Question, QuestionAttempt, SessionStats
 
 
@@ -28,8 +27,9 @@ class PlayState(GameState):
     def __init__(self, manager) -> None:
         super().__init__(manager)
         self.level = 1
-        self.score = 0
-        self.stars = 0
+        self.current_streak = 0
+        self.session_best_streak = 0
+        self.level_max_streak = 0
         self.answered = 0
         self.current_question: Question | None = None
         self.session_attempts: list[QuestionAttempt] = []
@@ -44,20 +44,26 @@ class PlayState(GameState):
             color=COLOR_TEXT_LIGHT,
             align="left",
         )
-        self.score_label = TextLabel(
+        self.streak_label = TextLabel(
             pygame.Rect(0, 10, SCREEN_WIDTH, 30),
-            "Puntos: 0",
+            "Racha: 0",
             font_size=FONT_SMALL,
             color=COLOR_TEXT_LIGHT,
         )
-        self.stars_label = TextLabel(
-            pygame.Rect(SCREEN_WIDTH - 220, 10, 200, 30),
-            "★ 0",
+        self.record_label = TextLabel(
+            pygame.Rect(SCREEN_WIDTH - 260, 10, 240, 30),
+            "Récord: 0",
             font_size=FONT_SMALL,
             color=COLOR_STAR,
             align="right",
         )
         self.progress_bar = ProgressBar(pygame.Rect(20, 50, SCREEN_WIDTH - 40, 16))
+        self.exit_button = Button(
+            pygame.Rect(SCREEN_WIDTH - 110, 45, 90, 28),
+            "Salir",
+            self._exit_session,
+            font_size=20,
+        )
         self.question_label = TextLabel(
             pygame.Rect(0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT - INPUT_HEIGHT),
             "0 + 0 = ?",
@@ -77,9 +83,10 @@ class PlayState(GameState):
 
         self.ui_elements = [
             self.level_label,
-            self.score_label,
-            self.stars_label,
+            self.streak_label,
+            self.record_label,
             self.progress_bar,
+            self.exit_button,
             self.question_label,
             self.input_box,
             self.feedback_label,
@@ -87,8 +94,9 @@ class PlayState(GameState):
 
     def enter(self, **kwargs) -> None:
         self.level = kwargs.get("level", 1)
-        self.score = 0
-        self.stars = 0
+        self.current_streak = 0
+        self.session_best_streak = 0
+        self.level_max_streak = self.manager.db.get_max_streak(self.level)
         self.answered = 0
         self.session_attempts = []
         self.input_enabled = True
@@ -103,16 +111,6 @@ class PlayState(GameState):
         self.input_box.set_active(False)
 
     def _next_question(self) -> None:
-        if self.answered >= SESSION_LENGTH:
-            stats = SessionStats.from_attempts(
-                self.level,
-                self.score,
-                self.stars,
-                self.session_attempts,
-            )
-            self.manager.change_state("summary", stats=stats)
-            return
-
         self.current_question = self.manager.question_generator.generate()
         self.question_label.set_text(self.current_question.question_text)
         self.question_label.color = COLOR_TEXT
@@ -148,17 +146,29 @@ class PlayState(GameState):
         self.answered += 1
 
         if is_correct:
-            self.score += 10
-            self.stars += 1
-            self.feedback_label.set_text("¡Correcto!")
+            previous_record = self.level_max_streak
+            self.current_streak += 1
+            self.session_best_streak = max(self.session_best_streak, self.current_streak)
+            self.level_max_streak = self.manager.db.update_max_streak(
+                self.level,
+                self.current_streak,
+            )
+            if self.current_streak > previous_record:
+                self.feedback_label.set_text("¡Correcto! ¡Nuevo récord!")
+            else:
+                self.feedback_label.set_text("¡Correcto!")
             self.feedback_label.color = COLOR_SUCCESS
             self.manager.sounds.play_success()
             self.feedback.start_success()
         else:
-            answer_text = self.current_question.question_text.replace("?", str(self.current_question.correct_answer))
+            self.current_streak = 0
+            answer_text = self.current_question.question_text.replace(
+                "?",
+                str(self.current_question.correct_answer),
+            )
             self.question_label.set_text(answer_text)
             self.question_label.color = COLOR_ERROR
-            self.feedback_label.set_text("Inténtalo de nuevo la próxima vez")
+            self.feedback_label.set_text("Racha reiniciada")
             self.feedback_label.color = COLOR_ERROR
             self.manager.sounds.play_error()
             self.feedback.start_error()
@@ -168,34 +178,42 @@ class PlayState(GameState):
         self._update_hud()
 
     def _finish_feedback(self) -> None:
-        if self.answered >= SESSION_LENGTH:
-            stats = SessionStats.from_attempts(
-                self.level,
-                self.score,
-                self.stars,
-                self.session_attempts,
-            )
-            self.manager.change_state("summary", stats=stats)
-            return
-
         self._next_question()
 
+    def _exit_session(self) -> None:
+        stats = SessionStats.from_attempts(
+            self.level,
+            self.session_attempts,
+            self.current_streak,
+            self.session_best_streak,
+            self.level_max_streak,
+        )
+        self.manager.change_state("summary", stats=stats)
+
     def _update_hud(self) -> None:
-        self.score_label.set_text(f"Puntos: {self.score}")
-        self.stars_label.set_text(f"★ {self.stars}")
-        self.progress_bar.set_progress(self.answered, SESSION_LENGTH)
+        self.streak_label.set_text(f"Racha: {self.current_streak}")
+        self.record_label.set_text(f"Récord: {self.level_max_streak}")
+        target = max(self.level_max_streak, 1)
+        self.progress_bar.set_progress(self.current_streak, target)
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        if not self.input_enabled:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if not self.feedback.is_active():
+                self._exit_session()
             return
 
-        if event.type == pygame.KEYDOWN:
+        if self.input_enabled and event.type == pygame.KEYDOWN:
             if self.input_box.handle_event(event):
                 return
 
         for element in self.ui_elements:
+            if element is self.input_box:
+                continue
             if element.handle_event(event):
-                break
+                return
+
+        if self.input_enabled and event.type == pygame.MOUSEBUTTONDOWN:
+            self.input_box.handle_event(event)
 
     def update(self, dt: float) -> None:
         if self.feedback.update(dt):

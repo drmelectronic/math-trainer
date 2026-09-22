@@ -51,17 +51,31 @@ class TestSessionStats(unittest.TestCase):
             QuestionAttempt("mul", "3 × 3 = ?", 9, 8, False, 4500),
             QuestionAttempt("mul", "7 × 8 = ?", 56, 56, True, 8000),
         ]
-        stats = SessionStats.from_attempts(level=2, score=10, stars=2, attempts=attempts)
+        stats = SessionStats.from_attempts(
+            level=2,
+            attempts=attempts,
+            current_streak=1,
+            session_best_streak=1,
+            level_max_streak=5,
+        )
 
         self.assertEqual(stats.correct, 2)
         self.assertEqual(stats.total, 3)
+        self.assertEqual(stats.session_best_streak, 1)
+        self.assertEqual(stats.level_max_streak, 5)
         self.assertAlmostEqual(stats.avg_response_ms, (1200 + 4500 + 8000) / 3)
         self.assertEqual(stats.slowest_response_ms, 8000)
         self.assertEqual(stats.slowest_question, "7 × 8 = ?")
         self.assertEqual(stats.weak_questions, ["3 × 3 = ?"])
 
     def test_empty_attempts(self) -> None:
-        stats = SessionStats.from_attempts(level=1, score=0, stars=0, attempts=[])
+        stats = SessionStats.from_attempts(
+            level=1,
+            attempts=[],
+            current_streak=0,
+            session_best_streak=0,
+            level_max_streak=0,
+        )
         self.assertEqual(stats.total, 0)
         self.assertEqual(stats.avg_response_ms, 0.0)
 

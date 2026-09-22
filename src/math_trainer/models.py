@@ -25,10 +25,11 @@ class QuestionAttempt:
 @dataclass
 class SessionStats:
     level: int
-    score: int
-    stars: int
-    correct: int
     total: int
+    correct: int
+    current_streak: int
+    session_best_streak: int
+    level_max_streak: int
     avg_response_ms: float
     slowest_response_ms: int
     slowest_question: str | None
@@ -38,14 +39,26 @@ class SessionStats:
     def from_attempts(
         cls,
         level: int,
-        score: int,
-        stars: int,
         attempts: list[QuestionAttempt],
+        current_streak: int,
+        session_best_streak: int,
+        level_max_streak: int,
     ) -> "SessionStats":
         total = len(attempts)
         correct = sum(1 for attempt in attempts if attempt.is_correct)
         if total == 0:
-            return cls(level, score, stars, 0, 0, 0.0, 0, None, [])
+            return cls(
+                level,
+                0,
+                0,
+                current_streak,
+                session_best_streak,
+                level_max_streak,
+                0.0,
+                0,
+                None,
+                [],
+            )
 
         times = [attempt.response_time_ms for attempt in attempts]
         avg_response_ms = sum(times) / total
@@ -59,10 +72,11 @@ class SessionStats:
 
         return cls(
             level=level,
-            score=score,
-            stars=stars,
-            correct=correct,
             total=total,
+            correct=correct,
+            current_streak=current_streak,
+            session_best_streak=session_best_streak,
+            level_max_streak=level_max_streak,
             avg_response_ms=avg_response_ms,
             slowest_response_ms=times[slowest_idx],
             slowest_question=slowest_attempt.question_text,
